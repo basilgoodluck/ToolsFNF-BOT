@@ -1,9 +1,14 @@
 import { REST, Routes } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 
 export async function registerCommands() {
   const commands = [];
@@ -12,7 +17,8 @@ export async function registerCommands() {
 
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
+    const fileUrl = `file://${filePath.replace(/\\/g, '/')}`; 
+    const command = await import(fileUrl);
     
     if ('data' in command) {
       commands.push(command.data.toJSON());

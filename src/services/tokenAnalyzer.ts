@@ -1,5 +1,5 @@
-import { SolanaService } from "./solana";
-import { PriceService } from "./priceService";
+import { SolanaService } from "./solana.js";
+import { PriceService } from "./priceService.js";
 import { ParsedTransactionWithMeta } from "@solana/web3.js";
 
 interface TokenTransaction {
@@ -31,20 +31,15 @@ interface TokenTransaction {
   
     async analyzePnL(walletAddress: string, tokenAddress: string): Promise<PnLAnalysis> {
       try {
-        // Get token metadata
         const metadata = await this.solanaService.getTokenMetadata(tokenAddress);
         
-        // Get transactions
         const transactions = await this.solanaService.getWalletTransactions(walletAddress);
         
-        // Filter and parse token transactions
         const tokenTxs = await this.parseTokenTransactions(transactions, tokenAddress);
         
-        // Get current price for USD conversion
         const currentPrice = await this.priceService.getCurrentPrice(tokenAddress);
         
-        // Calculate PnL
-        const analysis = this.calculatePnL(tokenTxs, currentPrice, metadata.data.name);
+        const analysis = this.calculatePnL(tokenTxs, currentPrice, metadata.name);
         
         return analysis;
       } catch (error) {
@@ -54,13 +49,52 @@ interface TokenTransaction {
     }
   
     private async parseTokenTransactions(
-      transactions: ParsedTransactionWithMeta[],
-      tokenAddress: string
-    ): Promise<TokenTransaction[]> {
-      // Implementation details for parsing transactions
-      // This would involve looking at instruction data and token transfers
-      return [];
-    }
+        transactions: ParsedTransactionWithMeta[],
+        tokenAddress: string
+      ): Promise<TokenTransaction[]> {
+        const tokenTxs: TokenTransaction[] = [];
+      
+        for (const tx of transactions) {
+          const preBalances = tx.meta?.preTokenBalances || [];
+          const postBalances = tx.meta?.postTokenBalances || [];
+      
+          const preBalance = preBalances.find(b => b.mint === tokenAddress);
+          const postBalance = postBalances.find(b => b.mint === tokenAddress);
+      
+          if (!preBalance || !postBalance) continue;
+      
+          const preAmount = Number(preBalance.uiTokenAmount.amount);
+          const postAmount = Number(postBalance.uiTokenAmount.amount);
+      
+          if (preAmount === postAmount) continue; 
+
+          const solSpent = Math.abs(
+            (tx.meta?.preBalances?.[0] || 0) - (tx.meta?.postBalances?.[0] || 0)
+          ) / 1e9;
+          const fees = (tx.meta?.fee || 0) / 1e9;
+          
+          if (postAmount > preAmount) {
+            tokenTxs.push({
+              type: 'buy',
+              amount: postAmount - preAmount,
+              price: solSpent / (postAmount - preAmount),
+              timestamp: tx.blockTime || 0,
+              fees,
+            });
+          } else {
+            tokenTxs.push({
+              type: 'sell',
+              amount: preAmount - postAmount,
+              price: solSpent / (preAmount - postAmount),
+              timestamp: tx.blockTime || 0,
+              fees,
+            });
+          }
+        }
+      
+        return tokenTxs;
+      }
+      
   
     private calculatePnL(
       transactions: TokenTransaction[],

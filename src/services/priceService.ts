@@ -12,7 +12,6 @@ export class PriceService {
         if (!response.data.data?.[tokenAddress]) {
           throw new Error('Price data not found');
         }
-  
         return response.data.data[tokenAddress].price;
       } catch (error) {
         console.error('Error fetching current price:', error);
@@ -21,8 +20,6 @@ export class PriceService {
     }
   
     async getHistoricalPrice(tokenAddress: string, timestamp: number): Promise<number> {
-      // Note: Jupiter doesn't provide historical prices directly
-      // You might want to use Birdeye API for this
       const response = await axios.get(
         `https://public-api.birdeye.so/public/history_price?address=${tokenAddress}&timestamp=${timestamp}`,
         {

@@ -1,7 +1,8 @@
 import { Client, Collection, Events, GatewayIntentBits } from 'discord.js';
-import { registerCommands } from './utils/registerCommands';
-import { loadCommands } from './utils/loadCommands';
+import { registerCommands } from './utils/registerCommands.js';
+import { loadCommands } from './utils/loadCommands.js';
 import dotenv from 'dotenv';
+import { TokenAnalyzer } from './services/tokenAnalyzer.js';
 
 dotenv.config();
 
@@ -19,15 +20,11 @@ client.commands = new Collection();
 
 async function main() {
   try {
-    // Connect to MongoDB
-    await connectDB();
     
-    // Load and register commands
     const commands = await loadCommands();
     client.commands = commands;
     await registerCommands();
 
-    // Handle interactions
     client.on(Events.InteractionCreate, async (interaction) => {
       if (!interaction.isChatInputCommand()) return;
 
@@ -44,8 +41,8 @@ async function main() {
         });
       }
     });
+    console.log('Discord Token:', process.env.DISCORD_TOKEN);
 
-    // Login
     await client.login(process.env.DISCORD_TOKEN);
     console.log('Bot is online!');
   } catch (error) {
@@ -53,5 +50,8 @@ async function main() {
     process.exit(1);
   }
 }
+const tokenAnalyzer = new TokenAnalyzer(process.env.RPC_URL!)
+const analysis = await tokenAnalyzer.analyzePnL("3dunE8UUExhFuXejqyYv6NUCiq2WQ25A21XrDFHNpNfU", "So11111111111111111111111111111111111111112");
+console.log(analysis)
 
 main();
